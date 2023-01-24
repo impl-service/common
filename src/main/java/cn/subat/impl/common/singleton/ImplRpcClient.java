@@ -34,20 +34,25 @@ public class ImplRpcClient {
 
 
     public <T> Mono<T> getAs(String api,Class<T> type){
-        return getAs(api,Map.of(),type);
+        Map<String, Object> bodyMap = new java.util.HashMap<>();
+        return getAs(api, bodyMap,type);
     }
 
 
     public <T> Mono<T> getAs(String api,Map<String,Object> bodyMap,Class<T> type){
-        return get(api,bodyMap,Map.of()).map(s -> new Gson().fromJson(s,type));
+        Map<String, Object> header = new java.util.HashMap<>();
+        return get(api,bodyMap, header).map(s -> new Gson().fromJson(s,type));
     }
 
     public Mono<String> get(String api){
-        return get(api,Map.of(),Map.of());
+        Map<String, Object> bodyMap = new java.util.HashMap<>();
+        Map<String, Object> header = new java.util.HashMap<>();
+        return get(api, bodyMap, header);
     }
 
     public Mono<String> get(String api, Map<String,? extends Object> bodyMap){
-        return get(api,bodyMap,Map.of());
+        Map<String, Object> header = new java.util.HashMap<>();
+        return get(api,bodyMap, header);
     }
 
     public Mono<String> get(String api, Map<String,? extends Object> bodyMap,Map<String,Object> header){

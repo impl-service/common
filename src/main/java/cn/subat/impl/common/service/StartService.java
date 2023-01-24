@@ -100,7 +100,13 @@ public class StartService {
 
                 String summary = getSummary(pathsMap, path, queueName);
                 String tag = getTag(pathsMap, path, queueName);
-                apiMap.add(Map.of("api",queueName,"name",summary,"service",key,"service_title",title,"tag",tag));
+                Map<String, Object> api = new java.util.HashMap<>();
+                api.put("api", queueName);
+                api.put("name", summary);
+                api.put("service", key);
+                api.put("service_title", title);
+                api.put("tag", tag);
+                apiMap.add(api);
             }
             registerApi(apiMap,key);
         }
@@ -162,12 +168,18 @@ public class StartService {
      * @return 配置信息
      */
     private Map<String, String> getSettingInfo(Field field) {
-        return Map.of("app_key", config.getAppKey(), "item", camelToSnake(field.getName()), "comment", field.getAnnotation(SPDocField.class).value());
+        Map<String, String> stringMap = new java.util.HashMap<>();
+        stringMap.put("app_key", config.getAppKey());
+        stringMap.put("item", camelToSnake(field.getName()));
+        stringMap.put("comment", field.getAnnotation(SPDocField.class).value());
+        return stringMap;
     }
 
     public void readConfig(){
         String appKey = config.getAppKey();
-        implRpcClient.get("core.setting.app.read",Map.of("app_key",appKey))
+        Map<String, String> bodyMap = new java.util.HashMap<>();
+        bodyMap.put("app_key", appKey);
+        implRpcClient.get("core.setting.app.read", bodyMap)
                 .map(this::parseResponse)
                 .filter(implResponse -> implResponse.getRc() == 1)
                 .map(ImplResponse::getData)
@@ -183,7 +195,10 @@ public class StartService {
      */
     public void registerApi(ArrayList<Map<String,Object>> list, String service){
         ImplRpcClient rpcClient = context.getBean(ImplRpcClient.class);
-        rpcClient.get("core.api.register",Map.of("service",service,"api_list",list)).map(r->{
+        Map<String, java.io.Serializable> bodyMap = new java.util.HashMap<>();
+        bodyMap.put("service", service);
+        bodyMap.put("api_list", list);
+        rpcClient.get("core.api.register", bodyMap).map(r->{
             log.info("接口注册已完成:{}",r);
             return r;
         }).subscribe();
@@ -195,7 +210,9 @@ public class StartService {
     public void registerApiDoc(){
         Object paths = readApiDoc().get("paths");
         ImplRpcClient rpcClient = context.getBean(ImplRpcClient.class);
-        rpcClient.get("core.api.doc.register",Map.of("api_doc",new Gson().toJson(paths))).map(r->{
+        Map<String, String> bodyMap = new java.util.HashMap<>();
+        bodyMap.put("api_doc", new Gson().toJson(paths));
+        rpcClient.get("core.api.doc.register", bodyMap).map(r->{
             log.info("接口文档注册已完成:{}",r);
             return r;
         }).subscribe();
