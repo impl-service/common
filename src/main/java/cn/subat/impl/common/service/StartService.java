@@ -36,34 +36,32 @@ import static cn.subat.impl.common.singleton.ImplChannel.TopicExchangeName;
 @Bean
 public class StartService {
 
-    private final JsonMapper jsonMapper;
-    private final ImplConfig config;
-    private final ImplRpcClient implRpcClient;
+    private JsonMapper jsonMapper;
+    private ImplConfig config;
+    private ImplRpcClient implRpcClient;
     private final ApplicationContext context;
     private Channel channel;
 
-    public StartService(ApplicationContext context) {
+    public StartService(ApplicationContext context){
         this.context = context;
+    }
+    public void start() {
         this.config = context.getBean(ImplConfig.class);
         this.implRpcClient = context.getBean(ImplRpcClient.class);
         this.jsonMapper = context.getBean(JsonMapper.class);
-    }
-
-    public void init(Channel channel) throws IOException {
-        this.channel = channel;
-        registerChannel();
         registerConfig();
         readConfig();
         registerApiDoc();
     }
 
-    public void registerChannel() throws IOException {
+    public void registerChannel(Channel channel) throws IOException {
+        this.channel = channel;
         channel.exchangeDeclare(ApiExchangeName, BuiltinExchangeType.DIRECT, true);
         channel.exchangeDeclare(TopicExchangeName, BuiltinExchangeType.FANOUT, true);
         registerTopicQueue();
         registerApiQueue();
+        Mono.fromRunnable(this::start).delaySubscription(Duration.ofSeconds(1)).subscribe();
     }
-
 
     private void registerTopicQueue(){
         if (context.containsBean(ImplConfig.class)){
@@ -108,7 +106,10 @@ public class StartService {
                 api.put("tag", tag);
                 apiMap.add(api);
             }
-            registerApi(apiMap,key);
+            Mono.fromRunnable(()-> registerApi(apiMap,key))
+                    .subscribeOn(Schedulers.boundedElastic())
+                    .delaySubscription(Duration.ofSeconds(1))
+                    .subscribe();
         }
     }
 
@@ -194,6 +195,7 @@ public class StartService {
      * 注册接口
      */
     public void registerApi(ArrayList<Map<String,Object>> list, String service){
+        if(!context.containsBean(ImplRpcClient.class)) return;
         ImplRpcClient rpcClient = context.getBean(ImplRpcClient.class);
         Map<String, java.io.Serializable> bodyMap = new java.util.HashMap<>();
         bodyMap.put("service", service);
@@ -209,7 +211,6 @@ public class StartService {
      */
     public void registerApiDoc(){
         Object paths = readApiDoc().get("paths");
-        log.info("接口文档:{}",paths);
         ImplRpcClient rpcClient = context.getBean(ImplRpcClient.class);
         Map<String, String> bodyMap = new java.util.HashMap<>();
         bodyMap.put("api_doc", new Gson().toJson(paths));
@@ -286,7 +287,7 @@ public class StartService {
     }
 
     private LinkedHashMap<String,Object> readApiDoc(){
-        InputStream schemaIS = config.getClass().getClassLoader().getResourceAsStream("spdoc/api.yaml");
+        InputStream schemaIS = this.getClass().getClassLoader().getResourceAsStream("spdoc/api.yaml");
         Yaml yaml = new Yaml();
         return yaml.load(schemaIS);
     }

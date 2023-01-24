@@ -26,14 +26,9 @@ public class ImplChannel extends ChannelInitializer {
         this.context = context;
     }
     @Override
-    public void initialize(Channel channel, String name) {
-        Mono.fromRunnable(()->{
-            StartService startService = context.createBean(StartService.class);
-            try {
-                startService.init(channel);
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        }).delaySubscription(Duration.ofSeconds(1)).subscribe();
+    public void initialize(Channel channel, String name) throws IOException {
+        StartService startService = new StartService(context);
+        startService.registerChannel(channel);
+        //Mono.fromRunnable(startService::start).delaySubscription(Duration.ofSeconds(1)).subscribe();
     }
 }
