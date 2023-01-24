@@ -209,6 +209,7 @@ public class StartService {
      */
     public void registerApiDoc(){
         Object paths = readApiDoc().get("paths");
+        log.info("接口文档:{}",paths);
         ImplRpcClient rpcClient = context.getBean(ImplRpcClient.class);
         Map<String, String> bodyMap = new java.util.HashMap<>();
         bodyMap.put("api_doc", new Gson().toJson(paths));
@@ -285,7 +286,7 @@ public class StartService {
     }
 
     private LinkedHashMap<String,Object> readApiDoc(){
-        InputStream schemaIS = this.getClass().getClassLoader().getResourceAsStream("spdoc/api.yaml");
+        InputStream schemaIS = config.getClass().getClassLoader().getResourceAsStream("spdoc/api.yaml");
         Yaml yaml = new Yaml();
         return yaml.load(schemaIS);
     }
