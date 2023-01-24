@@ -1,0 +1,44 @@
+plugins {
+    id 'java'
+}
+
+group 'cn.subat.impl'
+version '0.1'
+
+repositories {
+    //maven { url 'https://maven.aliyun.com/repository/public/' }
+    mavenCentral()
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+
+    compileOnly 'org.projectlombok:lombok:1.18.24'
+    annotationProcessor 'org.projectlombok:lombok:1.18.24'
+
+    implementation("io.micronaut:micronaut-inject:3.7.3")
+    annotationProcessor("io.micronaut:micronaut-inject-java:3.7.3")
+
+    implementation("io.micronaut.data:micronaut-data-hibernate-jpa:3.8.1")
+
+    implementation("io.micronaut.rabbitmq:micronaut-rabbitmq:3.3.0")
+
+    implementation('io.micronaut.reactor:micronaut-reactor:2.4.1')
+
+    implementation 'com.google.code.gson:gson:2.10'
+
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+
+    implementation('com.github.impl-service:spdoc:0.9')
+
+    annotationProcessor("io.micronaut.serde:micronaut-serde-processor:1.3.2")
+    implementation("io.micronaut.serde:micronaut-serde-api:1.3.2")
+
+}
+
+
+
+test {
+    useJUnitPlatform()
+}
