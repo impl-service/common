@@ -45,10 +45,14 @@ public class StartService {
     public StartService(ApplicationContext context){
         this.context = context;
     }
-    public void start() {
+
+    public void createBean(){
         this.config = context.getBean(ImplConfig.class);
         this.implRpcClient = context.getBean(ImplRpcClient.class);
         this.jsonMapper = context.getBean(JsonMapper.class);
+    }
+    public void start() {
+        createBean();
         registerConfig();
         readConfig();
         registerApiDoc();
