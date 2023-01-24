@@ -4,58 +4,39 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
 import com.rabbitmq.client.AMQP;
-import io.micronaut.json.JsonMapper;
 import io.micronaut.rabbitmq.reactive.RabbitPublishState;
 import io.micronaut.rabbitmq.reactive.ReactivePublisher;
-import io.micronaut.scheduling.TaskExecutors;
-import jakarta.inject.Named;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Mono;
-import reactor.core.scheduler.Scheduler;
-import reactor.core.scheduler.Schedulers;
 
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 @Singleton
 @Slf4j
-public class ImplRpcClient {
+public class ImplClient {
 
     ReactivePublisher reactivePublisher;
-    private final Scheduler scheduler;
 
-
-    public ImplRpcClient(ReactivePublisher reactivePublisher, @Named(TaskExecutors.IO) ExecutorService executorService, JsonMapper jsonMapper) {
+    public ImplClient(ReactivePublisher reactivePublisher) {
         this.reactivePublisher = reactivePublisher;
-        this.scheduler = Schedulers.fromExecutor(executorService);
     }
 
-
-    public <T> Mono<T> getAs(String api,Class<T> type){
-        Map<String, Object> bodyMap = new java.util.HashMap<>();
-        return getAs(api, bodyMap,type);
-    }
-
-
-    public <T> Mono<T> getAs(String api,Map<String,Object> bodyMap,Class<T> type){
-        Map<String, Object> header = new java.util.HashMap<>();
-        return get(api,bodyMap, header).map(s -> new Gson().fromJson(s,type));
-    }
-
-    public Mono<String> get(String api){
+    public Mono<String> rpc(String api){
         Map<String, Object> bodyMap = new java.util.HashMap<>();
         Map<String, Object> header = new java.util.HashMap<>();
-        return get(api, bodyMap, header);
+        return rpc(api, bodyMap, header);
     }
 
-    public Mono<String> get(String api, Map<String,? extends Object> bodyMap){
+    public Mono<String> rpc(String api, Map<String,? extends Object> bodyMap){
         Map<String, Object> header = new java.util.HashMap<>();
-        return get(api,bodyMap, header);
+        return rpc(api,bodyMap, header);
     }
 
-    public Mono<String> get(String api, Map<String,? extends Object> bodyMap,Map<String,Object> header){
+    public Mono<String> rpc(String api, Map<String,? extends Object> bodyMap, Map<String,Object> header){
         AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder().headers(header).replyTo("amq.rabbitmq.reply-to").build();
         byte[] body = new Gson().toJson(bodyMap).getBytes(StandardCharsets.UTF_8);
         RabbitPublishState state = new RabbitPublishState(ImplChannel.ApiExchangeName,api,properties,body);
@@ -66,17 +47,40 @@ public class ImplRpcClient {
 
     }
 
-    public void publishTopic(String topic,Map<String,Object> bodyMap){
+    public void publishTopicMessage(String topic, Map<String,Object> bodyMap){
         AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder().build();
         byte[] body = new Gson().toJson(bodyMap).getBytes(StandardCharsets.UTF_8);
         RabbitPublishState state = new RabbitPublishState(ImplChannel.TopicExchangeName,topic,properties,body);
         Mono.from(reactivePublisher.publish(state)).subscribe();
     }
 
-    public void publishQueue(String queue,Map<String,Object> bodyMap){
-        AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder().build();
+    public void publishDelayMessage(Duration delay, String queue, Map<String,Object> bodyMap){
+        HashMap<String,Object> body = new HashMap<>(bodyMap);
+        body.put("x-delay",delay.toMillis());
+        publishMessage(queue,body);
+    }
+
+    public void publishPriorityMessage(int priority, String queue, Map<String,Object> bodyMap){
+        HashMap<String,Object> body = new HashMap<>(bodyMap);
+        body.put("x-priority",priority);
+        publishMessage(queue,body);
+    }
+
+    public void publishMessage(String queue, Map<String,Object> bodyMap){
+        Map<String,Object> header = new HashMap<>();
+        AMQP.BasicProperties.Builder properties = new AMQP.BasicProperties.Builder();
+
+        // 设置优先级
+        if (bodyMap.containsKey("x-priority")){
+            properties.priority((Integer) bodyMap.get("x-priority"));
+        }
+        // 设置延时任务
+        if (bodyMap.containsKey("x-delay")){
+            header.put("x-delay",bodyMap.get("x-delay"));
+        }
+        properties.headers(header);
         byte[] body = new Gson().toJson(bodyMap).getBytes(StandardCharsets.UTF_8);
-        RabbitPublishState state = new RabbitPublishState(ImplChannel.QueueExchangeName,queue,properties,body);
+        RabbitPublishState state = new RabbitPublishState(ImplChannel.QueueExchangeName,queue,properties.build(),body);
         Mono.from(reactivePublisher.publish(state)).subscribe();
     }
 }

@@ -3,7 +3,7 @@ package cn.subat.impl.common.service;
 import cn.subat.impl.common.config.ImplConfig;
 import cn.subat.impl.common.dto.ImplResponse;
 import cn.subat.impl.common.dto.ImplSettingDto;
-import cn.subat.impl.common.singleton.ImplRpcClient;
+import cn.subat.impl.common.singleton.ImplClient;
 import cn.subat.impl.spdoc.annotation.SPDocField;
 import com.google.gson.Gson;
 import com.rabbitmq.client.BuiltinExchangeType;
@@ -23,10 +23,7 @@ import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static cn.subat.impl.common.singleton.ImplChannel.*;
 
@@ -37,7 +34,7 @@ public class StartService {
 
     private JsonMapper jsonMapper;
     private ImplConfig config;
-    private ImplRpcClient implRpcClient;
+    private ImplClient implClient;
     private final ApplicationContext context;
     private Channel channel;
 
@@ -47,7 +44,7 @@ public class StartService {
 
     public void createBean(){
         this.config = context.getBean(ImplConfig.class);
-        this.implRpcClient = context.getBean(ImplRpcClient.class);
+        this.implClient = context.getBean(ImplClient.class);
         this.jsonMapper = context.getBean(JsonMapper.class);
     }
     public void start() {
@@ -61,7 +58,11 @@ public class StartService {
         this.channel = channel;
         channel.exchangeDeclare(ApiExchangeName, BuiltinExchangeType.DIRECT, true);
         channel.exchangeDeclare(TopicExchangeName, BuiltinExchangeType.TOPIC, true);
-        channel.exchangeDeclare(QueueExchangeName, BuiltinExchangeType.DIRECT, true);
+
+        Map<String, Object> args = new HashMap<>();
+        args.put("x-delayed-type", "direct");
+        channel.exchangeDeclare(QueueExchangeName, "x-delayed-message", true, false, args);
+
         registerTopicQueue();
         registerNormalQueue();
         registerApiQueue();
@@ -72,8 +73,12 @@ public class StartService {
         LinkedHashMap<String,Object> apiDoc = readApiDoc();
         Object topics = apiDoc.get("topics");
         if(topics instanceof LinkedHashMap){
-            int count = declareQueue(topics, TopicExchangeName);
-            log.info("主题注册完成,总共：{}条",count);
+            LinkedHashMap<String,Object> topicsMap = (LinkedHashMap<String, Object>) topics;
+            for(String path:topicsMap.keySet()){
+                channel.queueDeclare(path,true,false,false,null);
+                channel.queueBind(path, TopicExchangeName, topicsMap.get(path).toString());
+            }
+            log.info("主题注册完成,总共：{}条",topicsMap.keySet().size());
         }
     }
 
@@ -81,18 +86,15 @@ public class StartService {
         LinkedHashMap<String,Object> apiDoc = readApiDoc();
         Object queues = apiDoc.get("queues");
         if(queues instanceof LinkedHashMap){
-            int count = declareQueue(queues, QueueExchangeName);
-            log.info("队列注册完成,总共：{}条",count);
+            Map<String, Object> args = new HashMap<>();
+            args.put("x-max-priority", 10);
+            LinkedHashMap<String,Object> queuesMap = (LinkedHashMap<String, Object>) queues;
+            for(String path:queuesMap.keySet()){
+                channel.queueDeclare(path,true,false,false,args);
+                channel.queueBind(path, QueueExchangeName, path);
+            }
+            log.info("队列注册完成,总共：{}条",queuesMap.keySet().size());
         }
-    }
-
-    private int declareQueue(Object queues, String topicExchangeName) throws IOException {
-        LinkedHashMap<String,Object> pathsMap = (LinkedHashMap<String, Object>) queues;
-        for(String path:pathsMap.keySet()){
-            channel.queueDeclare(path,true,false,false,null);
-            channel.queueBind(path, topicExchangeName, path);
-        }
-        return pathsMap.keySet().size();
     }
 
     private void registerApiQueue() throws IOException {
@@ -174,7 +176,7 @@ public class StartService {
         Flux.just(config.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(SPDocField.class))
                 .map(this::getSettingInfo)
-                .flatMap(map->implRpcClient.get("core.setting.create",map))
+                .flatMap(map-> implClient.rpc("core.setting.create",map))
                 .subscribe(s -> log.info("注册配置已完成:{}",s));
     }
 
@@ -195,7 +197,7 @@ public class StartService {
         String appKey = config.getAppKey();
         Map<String, String> bodyMap = new java.util.HashMap<>();
         bodyMap.put("app_key", appKey);
-        implRpcClient.get("core.setting.app.read", bodyMap)
+        implClient.rpc("core.setting.app.read", bodyMap)
                 .map(this::parseResponse)
                 .filter(implResponse -> implResponse.getRc() == 1)
                 .map(ImplResponse::getData)
@@ -210,12 +212,12 @@ public class StartService {
      * 注册接口
      */
     public void registerApi(ArrayList<Map<String,Object>> list, String service){
-        if(!context.containsBean(ImplRpcClient.class)) return;
-        ImplRpcClient rpcClient = context.getBean(ImplRpcClient.class);
+        if(!context.containsBean(ImplClient.class)) return;
+        ImplClient rpcClient = context.getBean(ImplClient.class);
         Map<String, java.io.Serializable> bodyMap = new java.util.HashMap<>();
         bodyMap.put("service", service);
         bodyMap.put("api_list", list);
-        rpcClient.get("core.api.register", bodyMap).map(r->{
+        rpcClient.rpc("core.api.register", bodyMap).map(r->{
             log.info("接口注册已完成:{}",r);
             return r;
         }).subscribe();
@@ -226,10 +228,10 @@ public class StartService {
      */
     public void registerApiDoc(){
         Object paths = readApiDoc().get("paths");
-        ImplRpcClient rpcClient = context.getBean(ImplRpcClient.class);
+        ImplClient rpcClient = context.getBean(ImplClient.class);
         Map<String, String> bodyMap = new java.util.HashMap<>();
         bodyMap.put("api_doc", new Gson().toJson(paths));
-        rpcClient.get("core.api.doc.register", bodyMap).map(r->{
+        rpcClient.rpc("core.api.doc.register", bodyMap).map(r->{
             log.info("接口文档注册已完成:{}",r);
             return r;
         }).subscribe();

@@ -9,6 +9,7 @@ import io.micronaut.rabbitmq.exception.DefaultRabbitListenerExceptionHandler;
 import io.micronaut.rabbitmq.exception.RabbitListenerException;
 import io.micronaut.rabbitmq.exception.RabbitListenerExceptionHandler;
 import jakarta.inject.Singleton;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.util.Optional;
@@ -16,6 +17,7 @@ import java.util.Optional;
 
 @Replaces(DefaultRabbitListenerExceptionHandler.class)
 @Singleton
+@Slf4j
 public class ImplRabbitListenerExceptionHandler implements RabbitListenerExceptionHandler {
 
 
@@ -35,7 +37,11 @@ public class ImplRabbitListenerExceptionHandler implements RabbitListenerExcepti
                     .build();
             try {
                 byte[] body = jsonMapper.writeValueAsBytes(ImplResponse.of(-500, "Service Error:"+exception.getLocalizedMessage()));
-                messageState.getChannel().basicPublish("",messageState.getProperties().getReplyTo(),basicProperties,body);
+                if (messageState.getProperties().getReplyTo() != null){
+                    messageState.getChannel().basicPublish("",messageState.getProperties().getReplyTo(),basicProperties,body);
+                }else{
+                    log.error(exception.getLocalizedMessage());
+                }
             } catch (IOException e) {
                 e.printStackTrace();
             }
