@@ -19,6 +19,7 @@ public class ImplChannel extends ChannelInitializer {
 
     public final static String ApiExchangeName = "impl-service";
     public final static String TopicExchangeName = "impl-topic";
+    public final static String QueueExchangeName = "impl-queue";
 
     ApplicationContext context;
 
@@ -29,6 +30,5 @@ public class ImplChannel extends ChannelInitializer {
     public void initialize(Channel channel, String name) throws IOException {
         StartService startService = new StartService(context);
         startService.registerChannel(channel);
-        //Mono.fromRunnable(startService::start).delaySubscription(Duration.ofSeconds(1)).subscribe();
     }
 }

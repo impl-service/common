@@ -72,4 +72,11 @@ public class ImplRpcClient {
         RabbitPublishState state = new RabbitPublishState(ImplChannel.TopicExchangeName,topic,properties,body);
         Mono.from(reactivePublisher.publish(state)).subscribe();
     }
+
+    public void publishQueue(String queue,Map<String,Object> bodyMap){
+        AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder().build();
+        byte[] body = new Gson().toJson(bodyMap).getBytes(StandardCharsets.UTF_8);
+        RabbitPublishState state = new RabbitPublishState(ImplChannel.QueueExchangeName,queue,properties,body);
+        Mono.from(reactivePublisher.publish(state)).subscribe();
+    }
 }

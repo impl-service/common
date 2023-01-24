@@ -28,8 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import static cn.subat.impl.common.singleton.ImplChannel.ApiExchangeName;
-import static cn.subat.impl.common.singleton.ImplChannel.TopicExchangeName;
+import static cn.subat.impl.common.singleton.ImplChannel.*;
 
 
 @Slf4j
@@ -61,27 +60,39 @@ public class StartService {
     public void registerChannel(Channel channel) throws IOException {
         this.channel = channel;
         channel.exchangeDeclare(ApiExchangeName, BuiltinExchangeType.DIRECT, true);
-        channel.exchangeDeclare(TopicExchangeName, BuiltinExchangeType.FANOUT, true);
+        channel.exchangeDeclare(TopicExchangeName, BuiltinExchangeType.TOPIC, true);
+        channel.exchangeDeclare(QueueExchangeName, BuiltinExchangeType.DIRECT, true);
         registerTopicQueue();
+        registerNormalQueue();
         registerApiQueue();
         Mono.fromRunnable(this::start).delaySubscription(Duration.ofSeconds(1)).subscribe();
     }
 
-    private void registerTopicQueue(){
-        if (context.containsBean(ImplConfig.class)){
-            ImplConfig config = context.getBean(ImplConfig.class);
-            List<String> topics = config.getTopics();
-            for (String topic : topics) {
-                if (!topic.contains("topic.")) continue;
-                try {
-                    channel.queueDeclare(topic,true,false,false,null);
-                    channel.queueBind(topic,TopicExchangeName,topic.split("topic\\.")[1]);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-            log.info("主题注册完成,总共：{}条",topics.size());
+    private void registerTopicQueue() throws IOException {
+        LinkedHashMap<String,Object> apiDoc = readApiDoc();
+        Object topics = apiDoc.get("topics");
+        if(topics instanceof LinkedHashMap){
+            int count = declareQueue(topics, TopicExchangeName);
+            log.info("主题注册完成,总共：{}条",count);
         }
+    }
+
+    private void registerNormalQueue() throws IOException {
+        LinkedHashMap<String,Object> apiDoc = readApiDoc();
+        Object queues = apiDoc.get("queues");
+        if(queues instanceof LinkedHashMap){
+            int count = declareQueue(queues, QueueExchangeName);
+            log.info("队列注册完成,总共：{}条",count);
+        }
+    }
+
+    private int declareQueue(Object queues, String topicExchangeName) throws IOException {
+        LinkedHashMap<String,Object> pathsMap = (LinkedHashMap<String, Object>) queues;
+        for(String path:pathsMap.keySet()){
+            channel.queueDeclare(path,true,false,false,null);
+            channel.queueBind(path, topicExchangeName, path);
+        }
+        return pathsMap.keySet().size();
     }
 
     private void registerApiQueue() throws IOException {
