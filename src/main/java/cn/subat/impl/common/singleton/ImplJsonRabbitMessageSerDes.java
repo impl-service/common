@@ -88,7 +88,7 @@ public class ImplJsonRabbitMessageSerDes extends JsonRabbitMessageSerDes {
             return serialized;
         } catch (IOException e) {
             try {
-                return jsonMapper.writeValueAsBytes(ImplResponse.builder().rc(-1).msg(e.getLocalizedMessage()).build());
+                return jsonMapper.writeValueAsBytes(new ImplResponse<>(-1, e.getLocalizedMessage()));
             } catch (IOException ex) {
                 ex.printStackTrace();
             }

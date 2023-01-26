@@ -144,11 +144,7 @@ public class ImplRabbitBodyBinder extends RabbitBodyBinder{
                 .correlationId(messageState.getProperties().getCorrelationId())
                 .build();
         try {
-            byte[] serialized = jsonMapper.writeValueAsBytes(ImplResponse.builder()
-                    .rc(-1002)
-                    .msg(msg)
-                    .build()
-            );
+            byte[] serialized = jsonMapper.writeValueAsBytes(new ImplResponse<>(-1002,msg));
             messageState.getChannel().basicPublish("",messageState.getProperties().getReplyTo(),basicProperties,serialized);
         } catch (IOException ex) {
             ex.printStackTrace();

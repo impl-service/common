@@ -204,8 +204,8 @@ public class StartService {
                 .flatMapIterable(settingDtoList -> settingDtoList)
                 .map(this::setConfigValue)
                 .delaySubscription(Duration.ofSeconds(2))
-                .doOnComplete(()->log.info("配置读取完成{}",config))
-                .subscribe();
+                .doOnComplete(()->log.info("配置读取完成{}",config));
+                //.subscribe();
     }
 
     /**
