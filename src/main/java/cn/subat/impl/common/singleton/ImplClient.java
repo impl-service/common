@@ -56,16 +56,26 @@ public class ImplClient {
 
     }
 
-    public <T> ImplResponse<T> rpcAs(Class<T> tClass,String api, Map<String,? extends Object> bodyMap, Map<String,Object> header) throws IOException {
-        String res = rpc(api,bodyMap,header).block();
-        assert res != null;
-        return jsonMapper.readValue(res, Argument.of(ImplResponse.class,tClass));
+    public <T> Mono<ImplResponse<T>> rpcAs(Class<T> tClass,String api, Map<String,? extends Object> bodyMap, Map<String,Object> header) {
+        return rpc(api,bodyMap,header).map(res -> {
+            assert res != null;
+            try {
+                return (ImplResponse<T>)jsonMapper.readValue(res, Argument.of(ImplResponse.class,tClass));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
-    public <T> ImplResponse<List<T>> rpcAsList(Class<T> tClass, String api, Map<String,? extends Object> bodyMap, Map<String,Object> header) throws IOException {
-        String res = rpc(api,bodyMap,header).block();
-        assert res != null;
-        return jsonMapper.readValue(res, Argument.of(ImplResponse.class,Argument.of(List.class,tClass)));
+    public <T> Mono<ImplResponse<List<T>>> rpcAsList(Class<T> tClass, String api, Map<String,? extends Object> bodyMap, Map<String,Object> header){
+        return rpc(api,bodyMap,header).map(res -> {
+            assert res != null;
+            try {
+                return (ImplResponse<List<T>>)jsonMapper.readValue(res, Argument.of(ImplResponse.class,Argument.listOf(tClass)));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        });
     }
 
     public void publishTopicMessage(String topic, Map<String,Object> bodyMap){

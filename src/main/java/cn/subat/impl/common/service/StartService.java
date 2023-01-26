@@ -173,6 +173,7 @@ public class StartService {
     }
 
     public void registerConfig(){
+        log.info("开始注册配置:{}",config.getClass().toString());
         Flux.just(config.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(SPDocField.class))
                 .map(this::getSettingInfo)
@@ -186,6 +187,7 @@ public class StartService {
      * @return 配置信息
      */
     private Map<String, String> getSettingInfo(Field field) {
+        log.info("注册配置:{}",field.getName());
         Map<String, String> stringMap = new java.util.HashMap<>();
         stringMap.put("app_key", config.getAppKey());
         stringMap.put("item", camelToSnake(field.getName()));
@@ -197,15 +199,15 @@ public class StartService {
         String appKey = config.getAppKey();
         Map<String, String> bodyMap = new java.util.HashMap<>();
         bodyMap.put("app_key", appKey);
-        implClient.rpc("core.setting.app.read", bodyMap)
-                .map(this::parseResponse)
+        implClient.rpcAsList(ImplSettingDto.class,"core.setting.app.read",bodyMap,new HashMap<>())
                 .filter(implResponse -> implResponse.getRc() == 1)
                 .map(ImplResponse::getData)
                 .flatMapIterable(settingDtoList -> settingDtoList)
                 .map(this::setConfigValue)
                 .delaySubscription(Duration.ofSeconds(2))
-                .doOnComplete(()->log.info("配置读取完成{}",config));
-                //.subscribe();
+                .doOnComplete(()->log.info("配置读取完成{}",config))
+                .doOnError(e->log.error("配置读取失败",e))
+                .subscribe();
     }
 
     /**
