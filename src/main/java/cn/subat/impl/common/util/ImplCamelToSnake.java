@@ -21,6 +21,17 @@ public class ImplCamelToSnake extends PhysicalNamingStrategyStandardImpl {
                 .toLowerCase();
     }
 
+    public static String snakeToCamel(String str){
+        StringBuilder sb = new StringBuilder(str);
+        for (int i = 0; i < sb.length(); i++) {
+            if (sb.charAt(i) == '_') {
+                sb.deleteCharAt(i);
+                sb.replace(i, i+1, String.valueOf(Character.toUpperCase(sb.charAt(i))));
+            }
+        }
+        return sb.toString();
+    }
+
     @Override
     public Identifier toPhysicalCatalogName(
             Identifier name,

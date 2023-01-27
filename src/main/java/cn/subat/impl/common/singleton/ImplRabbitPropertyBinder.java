@@ -7,6 +7,10 @@ import io.micronaut.rabbitmq.bind.RabbitPropertyBinder;
 import jakarta.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+
 @Replaces(RabbitPropertyBinder.class)
 @Singleton
 @Slf4j
@@ -22,6 +26,11 @@ public class ImplRabbitPropertyBinder extends RabbitPropertyBinder{
 
     @Override
     public boolean supports(ArgumentConversionContext<Object> context) {
-        return false;
+        String[] ignore = {"appId", "userId"};
+        List<String> ignoreList = new ArrayList<>(Arrays.asList(ignore));
+        if (ignoreList.contains(context.getArgument().getName())){
+            return false;
+        }
+        return super.supports(context);
     }
 }

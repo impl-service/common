@@ -4,6 +4,7 @@ import cn.subat.impl.common.config.ImplConfig;
 import cn.subat.impl.common.dto.ImplResponse;
 import cn.subat.impl.common.dto.ImplSettingDto;
 import cn.subat.impl.common.singleton.ImplClient;
+import cn.subat.impl.common.util.ImplCamelToSnake;
 import cn.subat.impl.spdoc.annotation.SPDocField;
 import com.google.gson.Gson;
 import com.rabbitmq.client.BuiltinExchangeType;
@@ -190,7 +191,7 @@ public class StartService {
         log.info("注册配置:{}",field.getName());
         Map<String, String> stringMap = new java.util.HashMap<>();
         stringMap.put("app_key", config.getAppKey());
-        stringMap.put("item", camelToSnake(field.getName()));
+        stringMap.put("item", ImplCamelToSnake.camelToSnake(field.getName()));
         stringMap.put("comment", field.getAnnotation(SPDocField.class).value());
         return stringMap;
     }
@@ -246,38 +247,17 @@ public class StartService {
      * @return 配置信息
      */
     private ImplSettingDto setConfigValue(ImplSettingDto settingDto){
-        String setMethodName = "set"+snakeToCamel(settingDto.getItem()).substring(0,1).toUpperCase()+snakeToCamel(settingDto.getItem()).substring(1);
-        try {
-            config.getClass().getDeclaredMethod(setMethodName, String.class).invoke(config, settingDto.getValue());
-        } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-            log.error("配置读取失败",e);
+        for (Field field : config.getClass().getDeclaredFields()) {
+            if(field.getName().equals(ImplCamelToSnake.snakeToCamel(settingDto.getItem()))){
+                field.setAccessible(true);
+                try {
+                    field.set(config, settingDto.getValue());
+                } catch (IllegalAccessException e) {
+                    log.error("配置读取失败",e);
+                }
+            }
         }
         return settingDto;
-    }
-
-    private String snakeToCamel(String str){
-        StringBuilder sb = new StringBuilder();
-        String[] split = str.split("\\.");
-        for (int i = 0; i < split.length; i++) {
-            if(i==0){
-                sb.append(split[i]);
-            }else{
-                sb.append(split[i].substring(0,1).toUpperCase()).append(split[i].substring(1));
-            }
-        }
-        return sb.toString();
-    }
-
-    private String camelToSnake(String str){
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < str.length(); i++) {
-            if(Character.isUpperCase(str.charAt(i))){
-                sb.append(".").append(Character.toLowerCase(str.charAt(i)));
-            }else{
-                sb.append(str.charAt(i));
-            }
-        }
-        return sb.toString();
     }
 
     private LinkedHashMap<String,Object> readApiDoc(){
