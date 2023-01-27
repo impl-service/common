@@ -250,35 +250,10 @@ public class StartService {
         try {
             config.getClass().getDeclaredMethod(setMethodName, String.class).invoke(config, settingDto.getValue());
         } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
-            throw new RuntimeException(e);
+            log.error("配置读取失败",e);
         }
         return settingDto;
     }
-
-
-    /**
-     * 解析返回结果
-     * @param s 返回结果
-     * @return 返回结果
-     */
-    @SuppressWarnings("unchecked")
-    private ImplResponse<List<ImplSettingDto>> parseResponse(String s) {
-        ImplResponse response;
-        try {
-            response = jsonMapper.readValue(s, Argument.of(ImplResponse.class));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        List<ImplSettingDto> settingList;
-        try {
-            settingList = jsonMapper.readValue(new Gson().toJson(response.getData()),Argument.listOf(ImplSettingDto.class));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        response.setData(settingList);
-        return response;
-    }
-
 
     private String snakeToCamel(String str){
         StringBuilder sb = new StringBuilder();

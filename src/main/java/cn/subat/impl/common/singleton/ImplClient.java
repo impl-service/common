@@ -78,6 +78,13 @@ public class ImplClient {
         });
     }
 
+    public void replyTo(String replyTo, Map<String,Object> bodyMap){
+        AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder().build();
+        byte[] body = new Gson().toJson(bodyMap).getBytes(StandardCharsets.UTF_8);
+        RabbitPublishState state = new RabbitPublishState("",replyTo,properties,body);
+        Mono.from(reactivePublisher.publish(state)).subscribe();
+    }
+
     public void publishTopicMessage(String topic, Map<String,Object> bodyMap){
         AMQP.BasicProperties properties = new AMQP.BasicProperties.Builder().build();
         byte[] body = new Gson().toJson(bodyMap).getBytes(StandardCharsets.UTF_8);

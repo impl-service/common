@@ -28,7 +28,6 @@ public class ImplResponseSerde implements Deserializer<ImplResponse> {
         while (true){
             String key = decoderObject.decodeKey();
             if (key == null) break;
-            log.info("key: {}", key);
             boolean finished = false;
             switch (key){
                 case "rc":

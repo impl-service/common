@@ -19,6 +19,7 @@ import io.micronaut.validation.validator.Validator;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.validation.ValidationException;
 import java.io.IOException;
@@ -27,6 +28,7 @@ import java.util.Optional;
 
 @Replaces(RabbitBodyBinder.class)
 @Singleton
+@Slf4j
 public class ImplRabbitBodyBinder extends RabbitBodyBinder{
 
     private RabbitMessageSerDesRegistry serDesRegistry;
@@ -145,7 +147,11 @@ public class ImplRabbitBodyBinder extends RabbitBodyBinder{
                 .build();
         try {
             byte[] serialized = jsonMapper.writeValueAsBytes(new ImplResponse<>(-1002,msg));
-            messageState.getChannel().basicPublish("",messageState.getProperties().getReplyTo(),basicProperties,serialized);
+            if (messageState.getProperties().getReplyTo() != null){
+                messageState.getChannel().basicPublish("",messageState.getProperties().getReplyTo(),basicProperties,serialized);
+            }else {
+                log.error("replyTo is null:{}",msg);
+            }
         } catch (IOException ex) {
             ex.printStackTrace();
         }
