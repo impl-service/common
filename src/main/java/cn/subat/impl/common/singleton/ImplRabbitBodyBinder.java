@@ -49,13 +49,11 @@ public class ImplRabbitBodyBinder extends RabbitBodyBinder{
         super(serDesRegistry);
         this.serDesRegistry = serDesRegistry;
         this.jsonMapper = jsonMapper;
-        log.info("ImplRabbitBodyBinder init");
     }
 
     @Override
     public BindingResult<Object> bind(ArgumentConversionContext<Object> context, RabbitConsumerState messageState) {
 
-        log.info("ImplRabbitBodyBinder bind");
         Argument<Object> bodyType = context.getArgument();
         Optional<Object> message = Optional.empty();
         if(bodyType.getAnnotation(Body.class) == null){
