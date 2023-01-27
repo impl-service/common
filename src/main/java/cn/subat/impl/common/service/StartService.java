@@ -173,6 +173,7 @@ public class StartService {
     }
 
     public void registerConfig(){
+        log.info("开始注册配置{}",config.getClass().getDeclaredFields()[0].isAnnotationPresent(SPDocField.class));
         Flux.just(config.getClass().getDeclaredFields())
                 .filter(field -> field.isAnnotationPresent(SPDocField.class))
                 .map(this::getSettingInfo)

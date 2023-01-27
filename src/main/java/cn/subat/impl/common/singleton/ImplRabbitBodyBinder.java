@@ -19,6 +19,7 @@ import io.micronaut.validation.validator.Validator;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import lombok.NonNull;
+import lombok.extern.slf4j.Slf4j;
 
 import javax.validation.ValidationException;
 import java.io.IOException;
@@ -27,6 +28,7 @@ import java.util.Optional;
 
 @Replaces(RabbitBodyBinder.class)
 @Singleton
+@Slf4j
 public class ImplRabbitBodyBinder extends RabbitBodyBinder{
 
     private RabbitMessageSerDesRegistry serDesRegistry;
@@ -47,11 +49,13 @@ public class ImplRabbitBodyBinder extends RabbitBodyBinder{
         super(serDesRegistry);
         this.serDesRegistry = serDesRegistry;
         this.jsonMapper = jsonMapper;
+        log.info("ImplRabbitBodyBinder init");
     }
 
     @Override
     public BindingResult<Object> bind(ArgumentConversionContext<Object> context, RabbitConsumerState messageState) {
 
+        log.info("ImplRabbitBodyBinder bind");
         Argument<Object> bodyType = context.getArgument();
         Optional<Object> message = Optional.empty();
         if(bodyType.getAnnotation(Body.class) == null){

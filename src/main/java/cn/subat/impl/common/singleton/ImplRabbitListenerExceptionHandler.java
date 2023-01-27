@@ -30,6 +30,7 @@ public class ImplRabbitListenerExceptionHandler implements RabbitListenerExcepti
 
     @Override
     public void handle(RabbitListenerException exception) {
+        log.error(exception.getLocalizedMessage());
         Optional<RabbitConsumerState> rabbitConsumerStateOpt = exception.getMessageState();
         rabbitConsumerStateOpt.ifPresent(messageState -> {
             AMQP.BasicProperties basicProperties = new AMQP.BasicProperties.Builder()
