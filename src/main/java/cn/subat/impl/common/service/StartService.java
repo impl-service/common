@@ -32,10 +32,6 @@ import static cn.subat.impl.common.singleton.ImplChannel.*;
 @Slf4j
 @Bean
 public class StartService {
-
-    private JsonMapper jsonMapper;
-    private ImplConfig config;
-    private ImplClient implClient;
     private final ApplicationContext context;
     private Channel channel;
 
@@ -43,15 +39,8 @@ public class StartService {
         this.context = context;
     }
 
-    public void createBean(){
-        this.config = context.getBean(ImplConfig.class);
-        this.implClient = context.getBean(ImplClient.class);
-        this.jsonMapper = context.getBean(JsonMapper.class);
-    }
     public void start() {
-        createBean();
-        registerConfig();
-        readConfig();
+
         registerApiDoc();
     }
 
@@ -173,44 +162,6 @@ public class StartService {
         return tag;
     }
 
-    public void registerConfig(){
-        log.info("开始注册配置:{}",config.getClass().toString());
-        Flux.just(config.getClass().getDeclaredFields())
-                .filter(field -> field.isAnnotationPresent(SPDocField.class))
-                .map(this::getSettingInfo)
-                .flatMap(map-> implClient.rpc("core.setting.create",map))
-                .subscribe(s -> log.info("注册配置已完成:{}",s));
-    }
-
-    /**
-     * 获取配置信息
-     * @param field 配置字段
-     * @return 配置信息
-     */
-    private Map<String, String> getSettingInfo(Field field) {
-        log.info("注册配置:{}",field.getName());
-        Map<String, String> stringMap = new java.util.HashMap<>();
-        stringMap.put("app_key", config.getAppKey());
-        stringMap.put("item", ImplCamelToSnake.camelToSnake(field.getName()));
-        stringMap.put("comment", field.getAnnotation(SPDocField.class).value());
-        return stringMap;
-    }
-
-    public void readConfig(){
-        String appKey = config.getAppKey();
-        Map<String, String> bodyMap = new java.util.HashMap<>();
-        bodyMap.put("app_key", appKey);
-        implClient.rpcAsList(ImplSettingDto.class,"core.setting.app.read",bodyMap,new HashMap<>())
-                .filter(implResponse -> implResponse.getRc() == 1)
-                .map(ImplResponse::getData)
-                .flatMapIterable(settingDtoList -> settingDtoList)
-                .map(this::setConfigValue)
-                .delaySubscription(Duration.ofSeconds(2))
-                .doOnComplete(()->log.info("配置读取完成{}",config))
-                .doOnError(e->log.error("配置读取失败",e))
-                .subscribe();
-    }
-
     /**
      * 注册接口
      */
@@ -238,26 +189,6 @@ public class StartService {
             log.info("接口文档注册已完成:{}",r);
             return r;
         }).subscribe();
-    }
-
-
-    /**
-     * 设置当前配置值
-     * @param settingDto 配置信息
-     * @return 配置信息
-     */
-    private ImplSettingDto setConfigValue(ImplSettingDto settingDto){
-        for (Field field : config.getClass().getDeclaredFields()) {
-            if(field.getName().equals(ImplCamelToSnake.snakeToCamel(settingDto.getItem()))){
-                field.setAccessible(true);
-                try {
-                    field.set(config, settingDto.getValue());
-                } catch (IllegalAccessException e) {
-                    log.error("配置读取失败",e);
-                }
-            }
-        }
-        return settingDto;
     }
 
     private LinkedHashMap<String,Object> readApiDoc(){
